@@ -1,123 +1,213 @@
-# VideoEncoder - a telegram bot for compressing/encoding videos in h264 format.
-# Copyright (c) 2021 WeebTime/VideoEncoder
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published
-# by the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import logging
+logging.basicConfig(
+    level=logging.DEBUG, 
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+LOGGER = logging.getLogger(__name__)
 
 import asyncio
 import os
-import subprocess
 import time
+import re
+import json
+import subprocess
+import math
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from bot.helper_funcs.display_progress import (
+  TimeFormatter
+)
+from bot.localisation import Localisation
+from bot import (
+    FINISHED_PROGRESS_STR,
+    UN_FINISHED_PROGRESS_STR,
+    DOWNLOAD_LOCATION,
+    crf,
+    watermark,
+    pid_list,
+    resolution,
+    bit,
+    preset
+)
 
-from hachoir.metadata import extractMetadata
-from hachoir.parser import createParser
-
-import ffmpeg
-
-from .. import audio, encode_dir
-from .. import preset as p
-from .. import tune as t
-
-
-def get_codec(filepath, channel='v:0'):
-    output = subprocess.check_output(['ffprobe', '-v', 'error', '-select_streams', channel,
-                                      '-show_entries', 'stream=codec_name,codec_tag_string', '-of',
-                                      'default=nokey=1:noprint_wrappers=1', filepath])
-    return output.decode('utf-8').split()
-
-
-async def encode(filepath):
-    path, extension = os.path.splitext(filepath)
-    name = path.split('/')
-    output_filepath = encode_dir + name[len(name)-1] + '.mkv'
-    assert(output_filepath != filepath)
-
-    if os.path.isfile(output_filepath):
-        print(f'Warning! "{output_filepath}": file already exists')
-    print(filepath)
-
-    # Codec and Bits
-    codec = '-c:v libx264 -pix_fmt yuv420p'
-
-    # CRF
-    crf = '-crf 28'
-
-    # Preset
-    if p == 'uf':
-        preset = '-preset ultrafast'
-    elif p == 'sf':
-        preset = '-preset superfast'
-    elif p == 'vf':
-        preset = '-preset veryfast'
-    elif p == 'f':
-        preset = '-preset fast'
-    elif p == 'm':
-        preset = '-preset medium'
-
-    # Optional
-    video_opts = f'-tune {t} -map 0:v? -map_chapters 0 -map_metadata 0'
-
-    # Copy Subtitles
-    subs_i = get_codec(filepath, channel='s:0')
-    if subs_i == []:
-        subtitles = ''
-    else:
-        subtitles = '-c:s copy -map 0:s?'
-
-    # Audio
-    a_i = get_codec(filepath, channel='a:0')
-    a = audio
-    if a_i == []:
-        audio_opts = ''
-    else:
-        audio_opts = '-map 0:a?'
-        if a == 'aac':
-            audio_opts += ' -c:a aac -b:a 128k'
-        elif a == 'opus':
-            audio_opts += ' -c:a libopus -vbr on -b:a 96k'
-        elif a == 'copy':
-            audio_opts += ' -c:a copy'
-
-    finish = '-threads 8'
-
-    # Finally
-    command = ['ffmpeg', '-y', '-i', filepath]
-    command.extend((codec.split() + preset.split() + video_opts.split() +
-                   crf.split() + subtitles.split() + audio_opts.split() + finish.split()))
-    proc = await asyncio.create_subprocess_exec(*command, output_filepath, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    await proc.communicate()
-    return output_filepath
-
-
-def get_thumbnail(in_filename, path, ttl):
-    out_filename = os.path.join(path, str(time.time()) + ".jpg")
-    open(out_filename, 'a').close()
+async def convert_video(video_file, output_directory, total_time, bot, message, chan_msg):
+    # https://stackoverflow.com/a/13891070/4723940
+    kk = video_file.split("/")[-1]
+    aa = kk.split(".")[-1]
+    out_put_file_name = kk.replace(f".{aa}", " [FIERCENETWORK].mkv")
+    #out_put_file_name = video_file + "_compressed" + ".mkv"
+    progress = output_directory + "/" + "progress.txt"
+    with open(progress, 'w') as f:
+      pass
+    ##  -metadata title='DarkEncodes [Join t.me/AnimesInLowSize]' -vf drawtext=fontfile=Italic.ttf:fontsize=20:fontcolor=black:x=15:y=15:text='Dark Encodes'
+    ##"-metadata", "title=@SenpaiAF", "-vf", "drawtext=fontfile=njnaruto.ttf:fontsize=20:fontcolor=black:x=15:y=15:text=" "Dark Encodes",
+     ## -vf eq=gamma=1.4:saturation=1.4
+     ## lol 😂
+    crf.append("26.2 -map 0")
+    resolution.append("1280x720")
+    bit.append("yuv420p")
+    preset.append("veryfast")
+    watermark.append('-vf "drawtext=fontfile=font.ttf:fontsize=25:fontcolor=white:bordercolor=black@0.50:x=w-tw-10:y=10:box=1:boxcolor=black@0.5:boxborderw=6:text=FIERCENETWORK"')
+    file_genertor_command = f'ffmpeg -hide_banner -loglevel quiet -progress "{progress}" -i "{video_file}" -c:v libx265  -crf {crf[0]} -c:s copy -preset fast -pix_fmt yuv420p10le -vf scale=1280:trunc(ow/a/2)*2 -x265-params no-info=1 -metadata title="SyFen | 720p.10bit.HEVC.x265"  -metadata:s:v title="SyFen - 720p/ 10bit/ HEVC"  -metadata:s:a title="Opus ~ SyFen" -metadata:s:s title="English ~ SyFen" -c:a libopus -b:a 96k "{out_put_file_name}" -y'
+ #For Ffmpeg Use
+    COMPRESSION_START_TIME = time.time()
+    process = await asyncio.create_subprocess_shell(
+          file_genertor_command,
+          # stdout must a pipe to be accessible as process.stdout
+           stdout=asyncio.subprocess.PIPE,
+           stderr=asyncio.subprocess.PIPE,
+          )
+    #stdout, stderr = await process.communicate()
+    
+    LOGGER.info("ffmpeg_process: "+str(process.pid))
+    pid_list.insert(0, process.pid)
+    status = output_directory + "/status.json"
+    with open(status, 'r+') as f:
+      statusMsg = json.load(f)
+      statusMsg['pid'] = process.pid
+      statusMsg['message'] = message.message_id
+      f.seek(0)
+      json.dump(statusMsg,f,indent=2)
+    # os.kill(process.pid, 9)
+    isDone = False
+    while process.returncode != 0:
+      await asyncio.sleep(3)
+      with open(DOWNLOAD_LOCATION + "/progress.txt", 'r+') as file:
+        text = file.read()
+        frame = re.findall("frame=(\d+)", text)
+        time_in_us=re.findall("out_time_ms=(\d+)", text)
+        progress=re.findall("progress=(\w+)", text)
+        speed=re.findall("speed=(\d+\.?\d*)", text)
+        if len(frame):
+          frame = int(frame[-1])
+        else:
+          frame = 1;
+        if len(speed):
+          speed = speed[-1]
+        else:
+          speed = 1;
+        if len(time_in_us):
+          time_in_us = time_in_us[-1]
+        else:
+          time_in_us = 1;
+        if len(progress):
+          if progress[-1] == "end":
+            LOGGER.info(progress[-1])
+            isDone = True
+            break
+        execution_time = TimeFormatter((time.time() - COMPRESSION_START_TIME)*1000)
+        elapsed_time = int(time_in_us)/1000000
+        difference = math.floor( (total_time - elapsed_time) / float(speed) )
+        ETA = "-"
+        if difference > 0:
+          ETA = TimeFormatter(difference*1000)
+        percentage = math.floor(elapsed_time * 100 / total_time)
+        progress_str = "📈 <b>Progress:</b> {0}%\n[{1}{2}]".format(
+            round(percentage, 2),
+            ''.join([FINISHED_PROGRESS_STR for i in range(math.floor(percentage / 10))]),
+            ''.join([UN_FINISHED_PROGRESS_STR for i in range(10 - math.floor(percentage / 10))])
+            )
+        stats = f'🗳 <b>ENCODING IN PROGRESS</b>\n\n' \
+                f'⌚ <b>TIME LEFT:</b> {ETA}\n\n' \
+                f'{progress_str}\n'
+        try:
+          await message.edit_text(
+            text=stats,
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [ 
+                        InlineKeyboardButton('❌ Cancel ❌', callback_data='fuckingdo') # Nice Call 🤭
+                    ]
+                ]
+            )
+          )
+        except:
+            pass
+        try:
+          await bug.edit_text(text=stats)
+        except:
+          pass
+        
+    stdout, stderr = await process.communicate()
+    r = stderr.decode()
     try:
-        (
-            ffmpeg
-            .input(in_filename, ss=ttl)
-            .output(out_filename, vframes=1)
-            .overwrite_output()
-            .run(capture_stdout=True, capture_stderr=True)
-        )
-        return out_filename
-    except ffmpeg.Error as e:
+        if er:
+           await message.edit_text(str(er) + "\n\n**ERROR** Contact @SenpaiAF")
+           os.remove(videofile)
+           os.remove(out_put_file_name)
+           return None
+    except BaseException:
+            pass
+    #if( not isDone):
+      #return None
+    e_response = stderr.decode().strip()
+    t_response = stdout.decode().strip()
+    LOGGER.info(e_response)
+    LOGGER.info(t_response)
+    del pid_list[0]
+    if os.path.lexists(out_put_file_name):
+        return out_put_file_name
+    else:
         return None
 
-
-def get_duration(filepath):
-    metadata = extractMetadata(createParser(filepath))
-    if metadata.has("duration"):
-        return metadata.get('duration').seconds
+async def media_info(saved_file_path):
+  process = subprocess.Popen(
+    [
+      'ffmpeg', 
+      "-hide_banner", 
+      '-i', 
+      saved_file_path
+    ], 
+    stdout=subprocess.PIPE, 
+    stderr=subprocess.STDOUT
+  )
+  stdout, stderr = process.communicate()
+  output = stdout.decode().strip()
+  duration = re.search("Duration:\s*(\d*):(\d*):(\d+\.?\d*)[\s\w*$]",output)
+  bitrates = re.search("bitrate:\s*(\d+)[\s\w*$]",output)
+  
+  if duration is not None:
+    hours = int(duration.group(1))
+    minutes = int(duration.group(2))
+    seconds = math.floor(float(duration.group(3)))
+    total_seconds = ( hours * 60 * 60 ) + ( minutes * 60 ) + seconds
+  else:
+    total_seconds = None
+  if bitrates is not None:
+    bitrate = bitrates.group(1)
+  else:
+    bitrate = None
+  return total_seconds, bitrate
+  
+async def take_screen_shot(video_file, output_directory, ttl):
+    out_put_file_name = os.path.join(
+        output_directory,
+        str(time.time()) + ".jpg"
+    )
+    if video_file.upper().endswith(("MKV", "MP4", "WEBM")):
+        file_genertor_command = [
+            "ffmpeg",
+            "-ss",
+            str(ttl),
+            "-i",
+            video_file,
+            "-vframes",
+            "1",
+            out_put_file_name
+        ]
+        
+        process = await asyncio.create_subprocess_exec(
+            *file_genertor_command,
+            # stdout must a pipe to be accessible as process.stdout
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        # Wait for the subprocess to finish
+        stdout, stderr = await process.communicate()
+        e_response = stderr.decode().strip()
+        t_response = stdout.decode().strip()
+    #
+    if os.path.lexists(out_put_file_name):
+        return out_put_file_name
     else:
-        return 0
+        return None
+# senpai I edited this,  maybe if it is wrong correct it 
