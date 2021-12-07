@@ -32,6 +32,11 @@ With python3.7 or later.
 pip3 install --no-cache-dir -r requirements.txt
 bash run.sh
 ```
+# Hosting 🖥
+
+### Deploying To Heroku ⚙
+
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
 
 ### Credits
 - [ShannonScott](https://gist.github.com/ShannonScott) for [transcode_h265.py](https://gist.github.com/ShannonScott/6d807fc59bfa0356eee64fad66f9d9a8)
