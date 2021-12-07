@@ -1,0 +1,44 @@
+{
+    "name": "CompressorBot",
+    "description": "A Normal Telegram Bot Which can Compress/encode/ Generate Samples of videos.",
+    "logo": "https://w7.pngwing.com/pngs/504/284/png-transparent-devil-woman-female-devil-logo-computer-wallpaper-fictional-character.png",
+    "keywords": ["Telegram","python", "Video","Compressor","Encoder"],
+    "repository": "https://github.com/NBM69/Video-Encoder-Bot",
+    "success_url": "https://t.me/Syfen_CC",
+    "stack": "container",
+    "env": {
+        "APP_ID": {
+            "description": "You api id, from my.telegram.org or @apiScrapperRoBot.",
+            "value": ""
+        },
+        "API_HASH": {
+            "description": "You api hash, from my.telegram.org or @apiScrapperRoBot.",
+            "value": ""
+        },
+        "BOT_TOKEN": {
+            "description": "Make a bot from @BotFather, and enter it's api token here.",
+            "value": ""
+        },
+        "SUDO_USERS": {
+            "description": "Create a private group/channel. Add @missrose_bot and your bot + make admin. Do /id. Paste that here",
+             "value": ""
+        },
+        "PRESET": {
+            "description": "Nothing",
+             "value": "sf"
+        },
+        "TUNE": {
+            "description": "Nothing",
+             "value": "film"
+        },
+        "AUDIO": {
+            "description": "Nothing",
+             "value": "opus"
+        },
+        "OWNER_ID": {
+            "description": "Get ur Id Of Telegram nd Paste Here.",
+            "value": "",
+            "required": false
+        }
+    }
+}
