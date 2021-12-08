@@ -47,7 +47,7 @@ async def encode(filepath):
     print(filepath)
 
     # Codec and Bits
-    codec = '-c:v libx265 -pix_fmt yuv420p10le'
+    codec = '-c:v libx265 -pix_fmt yuv420p'
 
     # CRF
     crf = '-crf 28'
